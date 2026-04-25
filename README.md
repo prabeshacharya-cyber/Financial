@@ -98,3 +98,29 @@ RUN_MODE=once SEND_EMAIL=false python app/main.py
 ```bash
 python app/main.py
 ```
+
+## Free deployment (GitHub Actions)
+
+This repo includes `.github/workflows/daily-scan.yml` for a free scheduled run approach.
+
+### What it does
+
+- Runs on weekdays via cron (`0 11 * * 1-5`).
+- Executes `python app/main.py` in `RUN_MODE=once`.
+- Sends email via SendGrid.
+- Commits updated `reports/picks_history.csv` back to the repository for persistent backtest history.
+
+### Required GitHub secrets
+
+- `SENDGRID_API_KEY`
+- `ALERT_FROM_EMAIL`
+- `ALERT_TO_EMAIL`
+
+### Optional GitHub repository variables
+
+- `ALERT_TIMEZONE`
+- `TOP_COUNT`
+- `MIN_PRICE`
+- `MIN_MARKET_CAP`
+- `MIN_REL_VOLUME`
+- `MAX_SPREAD_PCT`
