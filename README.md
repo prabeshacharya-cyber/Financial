@@ -124,3 +124,61 @@ This repo includes `.github/workflows/daily-scan.yml` for a free scheduled run a
 - `MIN_MARKET_CAP`
 - `MIN_REL_VOLUME`
 - `MAX_SPREAD_PCT`
+## Front-end app (web UI)
+
+You can run a full UI app with day-trade, long-term, and sentiment/news views:
+
+```bash
+streamlit run app/frontend_app.py
+```
+
+### UI features
+
+- **Day Trading tab:** execution plan (entry/stop/target/conviction)
+- **Long-Term tab:** long-term ranking score for most-active stocks
+- **Sentiment & News tab:** Yahoo Finance RSS headlines with simple sentiment scoring
+- **Automation tab:** quick commands and deployment reminders
+
+### Build as a mobile app
+
+- Use this Streamlit UI for MVP validation.
+- For a native app, move UI to React Native/Flutter and keep scanner logic as API endpoints.
+
+## Step-by-step deployment guide
+
+### Option A (free): GitHub Actions scheduled scanner + email
+
+1. Push this repository to GitHub.
+2. In GitHub repo settings, add **Secrets and variables → Actions → Secrets**:
+   - `SENDGRID_API_KEY`
+   - `ALERT_FROM_EMAIL`
+   - `ALERT_TO_EMAIL`
+3. (Optional) Add repository variables for tuning:
+   - `ALERT_TIMEZONE`, `TOP_COUNT`, `MIN_PRICE`, `MIN_MARKET_CAP`, `MIN_REL_VOLUME`, `MAX_SPREAD_PCT`
+4. Ensure workflow file exists: `.github/workflows/daily-scan.yml`.
+5. Open **Actions** tab and run **Daily Stock Scan** via `workflow_dispatch` once for validation.
+6. Verify:
+   - action log shows successful `python app/main.py`
+   - `reports/picks_history.csv` was updated/committed
+   - alert email arrives in `ALERT_TO_EMAIL`
+
+### Option B: Deploy Streamlit app (interactive web app)
+
+1. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Start web UI:
+   ```bash
+   streamlit run app/frontend_app.py
+   ```
+3. For Streamlit Community Cloud:
+   - Connect GitHub repo
+   - Set app entrypoint to `app/frontend_app.py`
+   - Add required secrets in app settings (for email-enabled backend runs)
+
+## Beginner implementation help
+
+If you're new to this stack, follow the dedicated walkthrough in:
+
+- `IMPLEMENTATION_GUIDE.md`

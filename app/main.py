@@ -645,6 +645,7 @@ def build_agentic_scan_graph():
     graph_builder.add_node("execution_planner", _node_execution_planner)
     graph_builder.add_node("backtesting_report", _node_backtesting)
     graph_builder.add_node("build_email", _node_build_email)
+    graph_builder.add_node("dispatch_email", _node_send_email)
     graph_builder.add_node("send_email", _node_send_email)
 
     graph_builder.add_edge(START, "fetch_symbols")
@@ -654,6 +655,8 @@ def build_agentic_scan_graph():
     graph_builder.add_edge("risk_manager", "execution_planner")
     graph_builder.add_edge("execution_planner", "backtesting_report")
     graph_builder.add_edge("backtesting_report", "build_email")
+    graph_builder.add_edge("build_email", "dispatch_email")
+    graph_builder.add_edge("dispatch_email", END)
     graph_builder.add_edge("build_email", "send_email")
     graph_builder.add_edge("send_email", END)
 
