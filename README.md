@@ -124,7 +124,6 @@ This repo includes `.github/workflows/daily-scan.yml` for a free scheduled run a
 - `MIN_MARKET_CAP`
 - `MIN_REL_VOLUME`
 - `MAX_SPREAD_PCT`
-
 ## Front-end app (web UI)
 
 You can run a full UI app with day-trade, long-term, and sentiment/news views:

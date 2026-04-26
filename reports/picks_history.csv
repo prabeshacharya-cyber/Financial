@@ -1,1 +1,4 @@
 run_date,symbol,entry_price,next_day_close,return_pct,status
+run_date,symbol,entry_price,next_day_close,return_pct,status
+2026-04-25,NVDA,122.5000,,,open
+2026-04-25,AAPL,198.1200,,,open
