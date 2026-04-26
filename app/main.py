@@ -656,8 +656,8 @@ def build_agentic_scan_graph():
     graph_builder.add_edge("backtesting_report", "build_email")
     graph_builder.add_edge("build_email", "dispatch_email")
     graph_builder.add_edge("dispatch_email", END)
-    graph_builder.add_edge("build_email", "send_email")
-    graph_builder.add_edge("send_email", END)
+    graph_builder.add_edge("build_email", "send_email_node")
+    graph_builder.add_edge("send_email_node", END)
 
     return graph_builder.compile()
 
