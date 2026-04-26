@@ -408,7 +408,23 @@ def backtest_and_track(plans: list[ExecutionPlan], history_path: Path) -> str:
     wins = 0
     losses = 0
     closed_returns: list[float] = []
+for row in rows:
+    run_date = row.get("run_date", "").strip()
 
+    # skip header or bad rows
+    if not run_date or run_date == "run_date":
+        continue
+
+    trade_date = date.fromisoformat(run_date)
+
+    if trade_date >= today:
+        updated_rows.append(row)
+        continue
+
+    close_price = fetch_next_day_close(row["symbol"], trade_date)
+    if close_price is None:
+        updated_rows.append(row)
+        continue
     for row in rows:
         if row.get("status") == "closed":
             updated_rows.append(row)
@@ -417,22 +433,6 @@ def backtest_and_track(plans: list[ExecutionPlan], history_path: Path) -> str:
             else:
                 losses += 1
             closed_returns.append(float(row.get("return_pct", "0") or 0))
-            continue
-for row in rows:
-    if row.get("run_date") == "run_date":
-        continue
-
-    trade_date = date.fromisoformat(row["run_date"])
-
-    trade_date = date.fromisoformat(row["run_date"])
-        trade_date = date.fromisoformat(row["run_date"])
-        if trade_date >= today:
-            updated_rows.append(row)
-            continue
-
-        close_price = fetch_next_day_close(row["symbol"], trade_date)
-        if close_price is None:
-            updated_rows.append(row)
             continue
 
         entry = float(row["entry_price"])
