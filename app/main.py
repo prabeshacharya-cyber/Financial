@@ -12,32 +12,31 @@ from urllib import parse, request
 
 try:
     import requests  # type: ignore
-except ImportError:  # pragma: no cover - environment dependent
+except ImportError:
     requests = None
 
 try:
     from apscheduler.schedulers.blocking import BlockingScheduler
     from apscheduler.triggers.cron import CronTrigger
-except ImportError:  # pragma: no cover - environment dependent
+except ImportError:
     BlockingScheduler = None
     CronTrigger = None
 
 try:
     from dotenv import load_dotenv
-except ImportError:  # pragma: no cover - environment dependent
+except ImportError:
     def load_dotenv() -> None:
         return None
 
 try:
     from langgraph.graph import END, START, StateGraph
-except ImportError:  # pragma: no cover - environment dependent
+except ImportError:
     END = "__END__"
     START = "__START__"
     StateGraph = None
 
-YAHOO_MOST_ACTIVE_URL = (
-    "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved"
-)
+
+YAHOO_MOST_ACTIVE_URL = "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved"
 YAHOO_QUOTE_URL = "https://query1.finance.yahoo.com/v7/finance/quote"
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
 SENDGRID_SEND_URL = "https://api.sendgrid.com/v3/mail/send"
@@ -121,6 +120,7 @@ def _http_get_json(url: str, params: dict[str, Any], timeout: int = 20) -> dict[
                     ]
                 }
             }
+
         if "finance/quote" in url:
             return {
                 "quoteResponse": {
@@ -154,6 +154,7 @@ def _http_get_json(url: str, params: dict[str, Any], timeout: int = 20) -> dict[
                     ]
                 }
             }
+
         if "finance/chart" in url:
             return {
                 "chart": {
@@ -168,6 +169,7 @@ def _http_get_json(url: str, params: dict[str, Any], timeout: int = 20) -> dict[
                     ]
                 }
             }
+
         return {}
 
     if requests is not None:
@@ -182,6 +184,7 @@ def _http_get_json(url: str, params: dict[str, Any], timeout: int = 20) -> dict[
 
     query = parse.urlencode(params)
     request_url = f"{url}?{query}" if query else url
+
     try:
         with request.urlopen(request_url, timeout=timeout) as response:
             status = getattr(response, "status", 200)
@@ -195,7 +198,10 @@ def _http_get_json(url: str, params: dict[str, Any], timeout: int = 20) -> dict[
 
 
 def _http_post_json(
-    url: str, payload: dict[str, Any], headers: dict[str, str], timeout: int = 20
+    url: str,
+    payload: dict[str, Any],
+    headers: dict[str, str],
+    timeout: int = 20,
 ) -> None:
     if requests is not None:
         response = requests.post(url, headers=headers, json=payload, timeout=timeout)
@@ -204,6 +210,7 @@ def _http_post_json(
 
     body = json.dumps(payload).encode("utf-8")
     req = request.Request(url=url, data=body, headers=headers, method="POST")
+
     with request.urlopen(req, timeout=timeout) as response:
         status = getattr(response, "status", 200)
         if status >= 400:
@@ -229,20 +236,25 @@ def fetch_quotes(symbols: list[str]) -> list[dict[str, Any]]:
 
 
 def fetch_next_day_close(symbol: str, trade_date: date) -> float | None:
-    period_start = datetime.combine(trade_date - timedelta(days=2), datetime.min.time()).replace(
-        tzinfo=timezone.utc
-    )
-    period_end = datetime.combine(trade_date + timedelta(days=14), datetime.min.time()).replace(
-        tzinfo=timezone.utc
-    )
+    period_start = datetime.combine(
+        trade_date - timedelta(days=2),
+        datetime.min.time(),
+    ).replace(tzinfo=timezone.utc)
+
+    period_end = datetime.combine(
+        trade_date + timedelta(days=14),
+        datetime.min.time(),
+    ).replace(tzinfo=timezone.utc)
 
     params = {
         "period1": int(period_start.timestamp()),
         "period2": int(period_end.timestamp()),
         "interval": "1d",
     }
+
     payload = _http_get_json(f"{YAHOO_CHART_URL}/{symbol}", params=params, timeout=20)
     chart = payload.get("chart", {}).get("result", [])
+
     if not chart:
         return None
 
@@ -252,6 +264,7 @@ def fetch_next_day_close(symbol: str, trade_date: date) -> float | None:
     for ts, close in zip(timestamps, closes):
         if close is None:
             continue
+
         candle_date = datetime.fromtimestamp(ts, tz=timezone.utc).date()
         if candle_date > trade_date:
             return float(close)
@@ -269,6 +282,7 @@ def market_analyst(
     for quote in quotes:
         price = float(quote.get("regularMarketPrice", 0.0) or 0.0)
         market_cap = float(quote.get("marketCap", 0.0) or 0.0)
+
         if price < min_price or market_cap < min_market_cap:
             continue
 
@@ -280,7 +294,7 @@ def market_analyst(
         low = float(quote.get("regularMarketDayLow", price) or price)
 
         rel_volume = _safe_div(volume, avg_volume)
-        range_pct = _safe_div((high - low), price) * 100
+        range_pct = _safe_div(high - low, price) * 100
 
         momentum_score = (
             (change_pct * 2.5)
@@ -326,10 +340,11 @@ def risk_manager(
         quote = quote_map.get(signal.symbol, {})
         ask = float(quote.get("ask", 0.0) or 0.0)
         bid = float(quote.get("bid", 0.0) or 0.0)
-        spread_pct = _safe_div((ask - bid), signal.price) * 100 if ask and bid else 0.0
+        spread_pct = _safe_div(ask - bid, signal.price) * 100 if ask and bid else 0.0
 
         if signal.rel_volume < min_rel_volume:
             continue
+
         if spread_pct > max_spread_pct:
             continue
 
@@ -351,26 +366,29 @@ def risk_manager(
     return approved
 
 
-def execution_planner(risk_approved: list[RiskApprovedSignal], top_count: int) -> list[ExecutionPlan]:
+def execution_planner(
+    risk_approved: list[RiskApprovedSignal],
+    top_count: int,
+) -> list[ExecutionPlan]:
     plans: list[ExecutionPlan] = []
 
     for approved in risk_approved[:top_count]:
-        s = approved.signal
-        risk_buffer = max(s.intraday_range_pct / 100 * 0.6, 0.012)
+        signal = approved.signal
+        risk_buffer = max(signal.intraday_range_pct / 100 * 0.6, 0.012)
         reward_buffer = risk_buffer * 1.8
 
-        stop_loss = max(s.price * (1 - risk_buffer), 0.01)
-        take_profit = s.price * (1 + reward_buffer)
+        stop_loss = max(signal.price * (1 - risk_buffer), 0.01)
+        take_profit = signal.price * (1 + reward_buffer)
 
         plans.append(
             ExecutionPlan(
-                symbol=s.symbol,
-                name=s.name,
-                entry=s.price,
+                symbol=signal.symbol,
+                name=signal.name,
+                entry=signal.price,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
                 conviction_score=approved.risk_score,
-                rationale=f"{s.thesis}; {approved.risk_notes}",
+                rationale=f"{signal.thesis}; {approved.risk_notes}",
             )
         )
 
@@ -379,12 +397,13 @@ def execution_planner(risk_approved: list[RiskApprovedSignal], top_count: int) -
 
 def _ensure_history_file(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+
     if path.exists():
         return
 
-    with path.open("w", newline="", encoding="utf-8") as f:
+    with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(
-            f,
+            file,
             fieldnames=[
                 "run_date",
                 "symbol",
@@ -401,49 +420,68 @@ def backtest_and_track(plans: list[ExecutionPlan], history_path: Path) -> str:
     _ensure_history_file(history_path)
 
     today = datetime.now(timezone.utc).date()
-    with history_path.open("r", newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
+
+    with history_path.open("r", newline="", encoding="utf-8") as file:
+        rows = list(csv.DictReader(file))
 
     updated_rows: list[dict[str, str]] = []
     wins = 0
     losses = 0
     closed_returns: list[float] = []
-for row in rows:
-    run_date = row.get("run_date", "").strip()
 
-    # skip header or bad rows
-    if not run_date or run_date == "run_date":
-        continue
-
-    trade_date = date.fromisoformat(run_date)
-
-    if trade_date >= today:
-        updated_rows.append(row)
-        continue
-
-    close_price = fetch_next_day_close(row["symbol"], trade_date)
-    if close_price is None:
-        updated_rows.append(row)
-        continue
     for row in rows:
+        run_date_value = row.get("run_date", "").strip()
+
+        if not run_date_value or run_date_value == "run_date":
+            continue
+
+        try:
+            trade_date = date.fromisoformat(run_date_value)
+        except ValueError:
+            continue
+
         if row.get("status") == "closed":
             updated_rows.append(row)
-            if float(row.get("return_pct", "0") or 0) > 0:
+
+            try:
+                return_pct = float(row.get("return_pct", "0") or 0)
+            except ValueError:
+                return_pct = 0.0
+
+            closed_returns.append(return_pct)
+
+            if return_pct > 0:
                 wins += 1
             else:
                 losses += 1
-            closed_returns.append(float(row.get("return_pct", "0") or 0))
+
             continue
 
-        entry = float(row["entry_price"])
-        ret_pct = _safe_div((close_price - entry), entry) * 100
+        if trade_date >= today:
+            updated_rows.append(row)
+            continue
+
+        close_price = fetch_next_day_close(row.get("symbol", ""), trade_date)
+
+        if close_price is None:
+            updated_rows.append(row)
+            continue
+
+        try:
+            entry = float(row.get("entry_price", "0") or 0)
+        except ValueError:
+            updated_rows.append(row)
+            continue
+
+        ret_pct = _safe_div(close_price - entry, entry) * 100
 
         row["next_day_close"] = f"{close_price:.4f}"
         row["return_pct"] = f"{ret_pct:.4f}"
         row["status"] = "closed"
-        updated_rows.append(row)
 
+        updated_rows.append(row)
         closed_returns.append(ret_pct)
+
         if ret_pct > 0:
             wins += 1
         else:
@@ -461,9 +499,9 @@ for row in rows:
             }
         )
 
-    with history_path.open("w", newline="", encoding="utf-8") as f:
+    with history_path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(
-            f,
+            file,
             fieldnames=[
                 "run_date",
                 "symbol",
@@ -496,6 +534,7 @@ def build_email_text(
     backtest_report: str,
 ) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     lines = [
         "Daily Day-Trade Plan",
         f"Generated at: {now} ({timezone_name})",
@@ -521,6 +560,7 @@ def build_email_text(
             "Risk reminder: automated signals can fail; use position sizing and hard stops.",
         ]
     )
+
     return "\n".join(lines)
 
 
@@ -567,21 +607,26 @@ def _node_market_analyst(state: ScanState) -> ScanState:
         min_price=state["min_price"],
         min_market_cap=state["min_market_cap"],
     )
+
     if not analysis:
         raise RuntimeError("Market Analyst found no symbols. Relax your scan filters.")
+
     return {"market_analysis": analysis}
 
 
 def _node_risk_manager(state: ScanState) -> ScanState:
     quote_map = {q.get("symbol", ""): q for q in state.get("quotes", [])}
+
     approved = risk_manager(
         market_analysis=state.get("market_analysis", []),
         quote_map=quote_map,
         min_rel_volume=state["min_rel_volume"],
         max_spread_pct=state["max_spread_pct"],
     )
+
     if not approved:
         raise RuntimeError("Risk Manager rejected all picks. Adjust risk thresholds.")
+
     return {"risk_approved": approved}
 
 
@@ -590,12 +635,14 @@ def _node_execution_planner(state: ScanState) -> ScanState:
         risk_approved=state.get("risk_approved", []),
         top_count=state["top_count"],
     )
+
     return {"execution_plan": plans}
 
 
 def _node_backtesting(state: ScanState) -> ScanState:
     history_path = Path(os.getenv("BACKTEST_HISTORY_FILE", "reports/picks_history.csv"))
     report = backtest_and_track(state.get("execution_plan", []), history_path)
+
     return {"backtest_report": report}
 
 
@@ -605,13 +652,16 @@ def _node_build_email(state: ScanState) -> ScanState:
         timezone_name=state["timezone_name"],
         backtest_report=state.get("backtest_report", "No backtest summary available."),
     )
+
     subject = f"[Stock Scan] {datetime.now().strftime('%Y-%m-%d')} Execution Plan"
+
     return {"email_subject": subject, "email_body": body}
 
 
-def _node_send_email(state: ScanState) -> ScanState:
+def _node_dispatch_email(state: ScanState) -> ScanState:
     if state.get("send_email", True):
         send_email_via_sendgrid(state["email_subject"], state["email_body"])
+
     return {}
 
 
@@ -621,10 +671,12 @@ class _SequentialGraph:
 
     def invoke(self, initial_state: ScanState) -> ScanState:
         state: ScanState = dict(initial_state)
+
         for node in self.nodes:
             update = node(state)
             if update:
                 state.update(update)
+
         return state
 
 
@@ -639,11 +691,12 @@ def build_agentic_scan_graph():
                 _node_execution_planner,
                 _node_backtesting,
                 _node_build_email,
-                _node_send_email,
+                _node_dispatch_email,
             ]
         )
 
     graph_builder: StateGraph = StateGraph(ScanState)
+
     graph_builder.add_node("fetch_symbols", _node_fetch_symbols)
     graph_builder.add_node("fetch_quotes", _node_fetch_quotes)
     graph_builder.add_node("market_analyst", _node_market_analyst)
@@ -651,8 +704,8 @@ def build_agentic_scan_graph():
     graph_builder.add_node("execution_planner", _node_execution_planner)
     graph_builder.add_node("backtesting_report", _node_backtesting)
     graph_builder.add_node("build_email", _node_build_email)
-    graph_builder.add_node("dispatch_email", _node_send_email)
-    graph_builder.add_node("send_email_node", _node_send_email)
+    graph_builder.add_node("dispatch_email", _node_dispatch_email)
+
     graph_builder.add_edge(START, "fetch_symbols")
     graph_builder.add_edge("fetch_symbols", "fetch_quotes")
     graph_builder.add_edge("fetch_quotes", "market_analyst")
@@ -662,8 +715,6 @@ def build_agentic_scan_graph():
     graph_builder.add_edge("backtesting_report", "build_email")
     graph_builder.add_edge("build_email", "dispatch_email")
     graph_builder.add_edge("dispatch_email", END)
-    graph_builder.add_edge("build_email", "send_email_node")
-    graph_builder.add_edge("send_email_node", END)
 
     return graph_builder.compile()
 
@@ -681,11 +732,13 @@ def run_scan_and_alert(send_email: bool = True) -> list[ExecutionPlan]:
 
     graph = build_agentic_scan_graph()
     final_state = graph.invoke(initial_state)
+
     return final_state.get("execution_plan", [])
 
 
 def start_scheduler() -> None:
     load_dotenv()
+
     if BlockingScheduler is None or CronTrigger is None:
         raise RuntimeError(
             "APScheduler is not installed. Install requirements.txt to use scheduled mode."
@@ -696,6 +749,7 @@ def start_scheduler() -> None:
     alert_minute = int(os.getenv("ALERT_MINUTE", "0"))
 
     scheduler = BlockingScheduler(timezone=timezone_name)
+
     scheduler.add_job(
         run_scan_and_alert,
         trigger=CronTrigger(hour=alert_hour, minute=alert_minute, timezone=timezone_name),
@@ -707,6 +761,7 @@ def start_scheduler() -> None:
         f"Scheduler started. Daily scan at {alert_hour:02d}:{alert_minute:02d} "
         f"{timezone_name}."
     )
+
     scheduler.start()
 
 
@@ -714,10 +769,13 @@ if __name__ == "__main__":
     load_dotenv()
 
     mode = os.getenv("RUN_MODE", "schedule").lower()
+
     if mode == "once":
         send_email = os.getenv("SEND_EMAIL", "true").lower() == "true"
         picks = run_scan_and_alert(send_email=send_email)
+
         print("Generated execution plans:")
+
         for stock in picks:
             print(
                 f"- {stock.symbol}: entry={stock.entry:.2f}, stop={stock.stop_loss:.2f}, "
