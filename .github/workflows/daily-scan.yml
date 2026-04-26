@@ -1,0 +1,61 @@
+name: Daily Stock Scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 11:00 UTC = 7:00 AM America/New_York during EDT.
+    # Update to 12:00 UTC during EST if you need exact 7:00 AM local time in winter.
+    - cron: "0 11 * * 1-5"
+
+permissions:
+  contents: write
+
+jobs:
+  scan-and-alert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ensure reports directory exists
+        run: mkdir -p reports
+
+      - name: Run scanner once and send alert email
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          ALERT_FROM_EMAIL: ${{ secrets.ALERT_FROM_EMAIL }}
+          ALERT_TO_EMAIL: ${{ secrets.ALERT_TO_EMAIL }}
+          ALERT_TIMEZONE: ${{ vars.ALERT_TIMEZONE || 'America/New_York' }}
+          TOP_COUNT: ${{ vars.TOP_COUNT || '10' }}
+          MIN_PRICE: ${{ vars.MIN_PRICE || '5' }}
+          MIN_MARKET_CAP: ${{ vars.MIN_MARKET_CAP || '2000000000' }}
+          MIN_REL_VOLUME: ${{ vars.MIN_REL_VOLUME || '1.1' }}
+          MAX_SPREAD_PCT: ${{ vars.MAX_SPREAD_PCT || '1.0' }}
+          BACKTEST_HISTORY_FILE: reports/picks_history.csv
+          ALLOW_SAMPLE_DATA_ON_FETCH_ERROR: "false"
+          RUN_MODE: once
+          SEND_EMAIL: "true"
+        run: python app/main.py
+
+      - name: Commit updated backtest history
+        run: |
+          if git diff --quiet -- reports/picks_history.csv; then
+            echo "No backtest changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/picks_history.csv
+          git commit -m "chore: update daily picks history"
+          git push
