@@ -418,7 +418,13 @@ def backtest_and_track(plans: list[ExecutionPlan], history_path: Path) -> str:
                 losses += 1
             closed_returns.append(float(row.get("return_pct", "0") or 0))
             continue
+for row in rows:
+    if row.get("run_date") == "run_date":
+        continue
 
+    trade_date = date.fromisoformat(row["run_date"])
+
+    trade_date = date.fromisoformat(row["run_date"])
         trade_date = date.fromisoformat(row["run_date"])
         if trade_date >= today:
             updated_rows.append(row)
