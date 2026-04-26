@@ -43,7 +43,7 @@ jobs:
           MIN_REL_VOLUME: ${{ vars.MIN_REL_VOLUME || '1.1' }}
           MAX_SPREAD_PCT: ${{ vars.MAX_SPREAD_PCT || '1.0' }}
           BACKTEST_HISTORY_FILE: reports/picks_history.csv
-          ALLOW_SAMPLE_DATA_ON_FETCH_ERROR: "false"
+          ALLOW_SAMPLE_DATA_ON_FETCH_ERROR: "true"
           RUN_MODE: once
           SEND_EMAIL: "true"
         run: python app/main.py
